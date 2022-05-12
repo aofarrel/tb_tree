@@ -1,5 +1,6 @@
 import argparse
 import gzip as gz
+import copy
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--vcfFile', required=True)
@@ -8,7 +9,7 @@ args = parser.parse_args()
 inFile=args.vcfFile
 outFile=args.outFile
 
-def processAlleles(line):
+def processLines(line):
     line = line.strip().split('\t')
     
     #note that alleleCounts are 2X the amount bc it assumes diploid
@@ -119,22 +120,150 @@ def processAlleles(line):
     #print('variantOnly', variantOnly)
     return newAlts, newAltsRef, newAC, line,variantsPresent, onlyMissing, changed
 
-def processIndels(line,newAlts, newAltsRef):
+'''
+def changeIndelAlleles(line, newAlts, newAltsRef):
+    missingperline = 0
+    for i in range(9,len(line)):
+
+        gt = line[i].split('/')
+        #when written as diploid the gt should have matching haplotype
+        assert gt[0] == gt[1]
+        
+        #if a sample has missing data, determine if 'N' needs to be added to alt alleles and change genotype to the index for 'N'
+        if line[i] == './.':
+            missingperline += 1
+            #check this!!!!
+            #if ref is 0 then all alts are 1 based encoding?
+            #line[i] = str(line[4].split(',').index('N')+1)
+            line[i] = str(newAlts.index('N')+1)
+            
+        #if no data is missing for sample, change genotype to haploid   
+        else:
+            if gt[0] == '0':
+                line[i] = gt[0]
+            else:
+                oldInd = gt[0]
+                #print(oldInd, type(oldInd))
+                #print(newAltsRef)
+                newInd = str(newAltsRef.index(oldInd)+1)
+                line[i] = newInd
+                #print('old',oldInd)
+                #print('newInd', newInd)
+    return line, missingperline
+'''
+
+
+def processIndels(line,newAlts, newAltsRef, newAC):
     print(line[1])
     ref = line[3]
-    for a in newAlts:
-        if len(ref) == len(a):
+    print(line)
+    print(newAlts)
+    print(newAltsRef)
+    newLine = []
+    line, missingperline = processAlleles(line, newAlts, newAltsRef)
+    print(line)
+    
+    for a in range(len(newAlts)):
+        print(a)
+
+        if len(ref) == 1:
+            assert len(ref) < len(newAlts[a])
+            print('EASYYYYY', line)
+            if len(newAlts) == 1:
+                print('delete', line[1])
+                #return None
+            #else:
+            elif len(newAlts) > 1:
+                
+                #if 'N'*len(newAlts[a]) no
+                newAlts[a] = 'N'*len(newAlts[a])
+                print(newAltsRef[a])
+                print('N'*len(newAlts[a]))
+                print('delete', newAlts[a])
+                #newAlts.remove
+                print(line)
+                line[4] = ','.join(newAlts)
+                print(line)
+                #yield line
+                #line[4].remove(a)
+
+        else:
+            print(ref)
+            print(newAlts[a])
+            if len(ref) < len(newAlts[a]):
+                end = len(ref)
+                print('insertion')
+                extra = newAlts[a][end:]
+            elif len(ref) > len(newAlts[a]):
+                print('deletion')
+                end = len(newAlts[a])
+                extra = ref[end:]
+            else:
+                print('snps')
+                end = len(ref)
+                extra = None
+
+            print('extra', extra)
+            snps = []
+            for i in range(end):
+                if ref[i] != newAlts[a][i]:
+                    snps.append(i)
+                #print(i)
+                #print(ref[i])
+                #print(newAlts[a][i])
+            print('snps', snps)
+            
+            #this isn't working yet
+            for snp in snps:
+                print(snp)
+                line[1] = str(snp+ int(line[1]))
+                line[3] = ref[snp]
+                line[4] = newAlts[a][snp]
+                print(line)
+                yield line
+
+
+
+
+
+        
+        
+
+        
+        '''
+        if len(ref) == len(newAlts[a]):
             print('snp?')
             snps = []
+            print(ref)
+            print(a)
             for i in range(len(ref)):
-                if ref[i] != a[i]:
+                
+                if ref[i] != newAlts[a][i]:
                     snps.append(i)
-            print('snps',snps)
+                    newLine.append(['' for j in range(len(line))])
+            print(newLine)
+            print(snps)
+            for snp in range(len(snps)):
+                print(newLine[snp])
+            
+        
+            if len(snps) > 1:
+                print(newline)
+            elif len(snps) == 1:
+                line[1] = str(snps[0] + int(line[1]))
+                line[3] = line[3][snp[0]]
+                line[4] = line[4]
+            else:
+                #put an actual error checker here
+                print('error!!!!, this isnt a variant ')
+            
+            
 
-        elif len(ref) > len(a):
+        elif len(ref) > len(newAlts[a]):
             print('del', ref, a)
         else:
             print('ins', ref, a)
+        '''
 
     '''
     ref = line[3]
@@ -166,7 +295,7 @@ def processIndels(line,newAlts, newAltsRef):
         print('what are you?', line)
     '''
 
-def processSNPs(line, newAlts, newAltsRef):
+def processAlleles(line, newAlts, newAltsRef):
     missingperline = 0
     for i in range(9,len(line)):
         
@@ -216,8 +345,8 @@ with gz.open(inFile, 'rb') as f:
                 continue
             totalLines += 1
             #print(line)
-            #for each line, use processAlleles to determine if the line has any relevant variants or missing data
-            data = processAlleles(line)
+            #for each line, use processLines to determine if the line has any relevant variants or missing data
+            data = processLines(line)
             if data != None:
                 newAlts, newAltsRef, newAC, line,variantsPresent, onlyMissing, changed = data
                 #print(newAlts, newAltsRef, newAC, line, variantsPresent, onlyMissing)
@@ -234,12 +363,14 @@ with gz.open(inFile, 'rb') as f:
             
             if posIndel == True or len(line[3]) > 1:
                 print('indel? ')
-                processIndels(line, newAlts, newAltsRef)
+                yeet = processIndels(line, newAlts, newAltsRef, newAC)
+                for y in yeet:
+                    print('YEEEEEEEETTTTTT', y)
                 indel += 1
             
             else:
                 snp += 1
-                line, missingperline = processSNPs(line, newAlts, newAltsRef)
+                line, missingperline = processAlleles(line, newAlts, newAltsRef)
                 #print(line, missingperline)
 
             #note that AC does not count the number of N alleles per line 
