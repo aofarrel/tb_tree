@@ -134,83 +134,77 @@ def processIndels(line,newAlts, newAltsRef, newAC):
     #snp = False
     #print('work?')
     ref = line[3]
-    print('position',line[1])
+    #print('position',line[1])
     #print('preprocess',line)
     #print(newAlts)
     #print(newAltsRef)
     #newLine = []
     line, missingperline = processAlleles(line, newAlts, newAltsRef)
-    print('postprocess',line)
+    dontAdd = False
+    #print('postprocess',line)
     
     for a in range(len(newAlts)):
-        #print('allele', newAlts[a])
 
         if len(ref) == 1:
             assert len(ref) < len(newAlts[a])
-            #print('EASYYYYY', line)
-            #the simplest case: inserted from one base pair to many... simply delete
+            #the simplest case: insertion from one base pair to many and no other alleles... simply delete line from file
+            #misrepresents these sites as reference but that is currently how usher does it 
+            #if there are no other alts in the site there is no reason to store it even if this misrepresents it
             if len(newAlts) == 1:
-                print('delete', line)
+                #print('delete', line)
                 return None
-            #else:
             
-            #if there is more than one alt, i don't think i should change gt back to reference, replace alt with a line of Ns
-            #change line but don't need to create a new line
+            #if there is more than one alt, i don't think i should change gt back to reference for insertions bc the variant is 
+            #still in the file), replace the alt with a line of Ns so we know that it's an indel but also that it's been processed
             elif len(newAlts) > 1:
-                #print('delete alt', line[1])
-                #if 'N'*len(newAlts[a]) no
+            
+                #replacing the alt with a string of N's represents that it's an indel wo removing it from vcf and misrepresenting
+                #site as reference genotype
                 newAlts[a] = 'N'*len(newAlts[a])
-                #print(newAltsRef[a])
-                #print('alt=', 'N'*len(newAlts[a]))
-                #print('delete', newAlts[a])
-                #newAlts.remove
-                #print(line)
                 line[4] = ','.join(newAlts)
-                #print(line)
-                #yield line
-                #line[4].remove(a)
+                #change alts to updated newAlts
+                #changeAlt = line[4].split(',')
+                #changeAlt[a] = newAlts[a]
+                #line[4] = ','.join(changeAlt)
+                #note that nothing here is changed except how the indel is represented (we are changing alt so we can see that its 
+                #been processed) usher will see this site as the reference bc it ignores indels but we will know there is a variant here
 
         #the less simple cases 
         else:
-            #if len(newAlts) == 1:
-            #    print('ONLY ONE ALT')
-            #print('ref', ref)
-            #print(newAlts[a])
-
-            #if ref > 0 but not same len as allele, not worth looking for snps, should be masked
-            #indels can just be masked
-            #starting from same position don't need a new line
+            #if len(ref) is less than allele but greater than 1, there is likely something strange about this site, better to mask it than try to 
+            #process
+            #MAKE SURE USHER CAN HANDLE MY FORMAT
             if len(ref) < len(newAlts[a]):
+                #if there is only one alt, and we are masking the alt, just delete the line entirely (it's not quite accurate as a VCF but Usher 
+                #wont know the diff)
                 if len(newAlts) == 1:
-                    print('delete', line)
+                    #print('delete', line)
                     return None
-                #print('insertion', line[1])
+                #if there is more than one alt, we are going to mask this insertion in the line of alts, bc we are keeping the site and showing that it
+                #has been prpcessed (this approach may need to be modified eventually)
                 else:
                     newAlts[a] = 'N'*len(newAlts[a])
                     line[4] = ','.join(newAlts)
-                #print(line)
-                #end = len(ref)
-                #print('insertion')
-                #extra = newAlts[a][end:]
-            #deletions need subsequence positions masked as well
+
+            #deletions need subsequent positions masked as well
             #since subsequent positions will be added, need a new line for everysingle one 
             elif len(ref) > len(newAlts[a]):
-                #print('a', a)
+                #first modify the alt to a string of Ns
                 newAlts[a] = 'N'*len(newAlts[a])
                 line[4] = ','.join(newAlts)
-                #print(line[4])
-                #update line above
-                #create new lines for all deleted sites below
-                #print('segment', line[1], int(line[1])+len(ref))
-                #print('shortened', line[1],int(line[1])+ len(newAlts[a]))
-                newLines = (int(line[1])+len(ref)) - (int(line[1])+ len(newAlts[a]))
-                #print(newLines)
+                #don't need the intial deletion if it is the only variant in the position
+                #misrepresents indel as reference but usher cant tell 
+                #THIS MAY NEED TO BE MODIFIED, SOME DELETIONS MAY NOT LINE UP FULLY KEEP AN EYE OUT
+                if len(newAlts) == 1:
+                    dontAdd = True
+                
+                #create new lines for all deleted sites from end of alt to end of ref
                 end = len(newAlts[a])
                 extra = ref[end:]
-                #print('extra',extra, len(extra))
+                #the line has been modified, we want to make a copy so that we are 
+                #not accidentally creating and updating a reference 
                 newLine = copy.copy(line)
-                #might need to merge these with positions later on? 
-                
+                #modify newline for each subsequent newline (they all have the same alt and samples with the genotype)
                 newLine[4] = 'N'
                 newLine[7] = 'AC='+';'+line[7][1]
                 for j in range(9, len(newLine)):
@@ -220,99 +214,86 @@ def processIndels(line,newAlts, newAltsRef, newAC):
                         newLine[j] = '1'
                     else:
                         newLine[j] = '0'
-                #print('old line',line)
-                #print('new line', newLine)
-                
+                #iterate through all deleted positions and create a line for each one 
+                #add lines to list of positions to be added to vcf
+                #might need to merge some of these lines later
+                #worth creating a generator from this or no?
                 for i in range(len(extra)):
                     nLine = copy.copy(newLine)
-                    #print(newLine)
-                    #print(i, i + int(line[1])+end, extra[i])
                     nLine[1] = str(i + int(line[1])+end)
                     nLine[3] = extra[i]
-                    #newLine[4] = 'N'
-                    ##for j in range(9, len(newLine)):
-                    #    print(j, newLine[j], a)
-                    #    if newLine[j] == str(a+1):
-                    #        print('inline',j, a, a+1)
-                    #yield newLine
-                    #print('new',newLine)
                     addLines.append(nLine)
-                #print(newLines)
       
-               
-                
-                #for i in range()
-
-                
-                #print('deletion')
-                
-                #extra = ref[end:]
-            #need to remove snp from new alts or remove og line entirely
+            #this is not an indel it is a series of close together snps 
+            #need to identify all snps and add a new line for each one 
+            #need to remove snp from new alts or remove line entirely if its the only alt
             elif len(ref)==len(newAlts[a]) and newAlts[a] != 'N'*len(ref):
-
-                #print('snps')
                 end = len(ref)
-                extra = None
-
-                #print('extra')
                 snps = []
                 for i in range(end):
                     if ref[i] != newAlts[a][i]:
                         snps.append(i)
-                    #print(i)
-                    #print(ref[i])
-                    #print(newAlts[a][i])
-                print('snps', snps)
-            
-                #this isn't working yet
-                #print(line)
+                    
+                #print('snps', snps)
+                #create a new line that can be modified wo messing up line
                 newLine = copy.copy(line)
-                #might need to merge these with positions later on? 
-                
-                #newLine[4] = 'N'
+                #remove allele count to avoid confusion (modify later if worth time)
                 newLine[7] = 'AC='+';'+line[7][1]
-                
-                #print('old line',line)
-                #print('new line', newLine)
+                #iterate through all samples to update genotypes 
                 for j in range(9, len(newLine)):
-                    #print(j, newLine[j], a)
+                    #if genotype matches your current alt, make it 1
                     if newLine[j] == str(a+1):
-                        #print('inline',j, a, a+1)
                         newLine[j] = '1'
                     else:
                         newLine[j] = '0'
-                #print('old line',line)
-                #print('new line', newLine)
+                #iterate through all snps and update newLine
+                #add newLine to addLines before updating again 
                 for snp in snps:
-                    #print(snp)
-                    newLine[1] = str(snp+ int(newLine[1]))
+                    newLine[1] = str(snp+ int(line[1]))
                     newLine[3] = ref[snp]
                     newLine[4] = newAlts[a][snp]
                     #print('new',newLine)
                     #yield line
                     addLines.append(newLine)
+                #if snp is the only alt, dont add line to newLines
                 if len(newAlts) == 1:
-                    line = None
+                    dontAdd = True
                 else:
-                    print('remove snp from this', line)
-                    print(newAlts)
+                    #print('remove snp from this', line)
+                    #print(newAlts)
                     #newAlts = newAlts.pop(a)
-                    print('updated new alts', newAlts)
-                    print(line[4])
-                    line[4] = del line[4].split(',')[a]
-                    print(line[4])
-                    print(line[7])
-                    del line[7].split(';')[0][3:].split(',')[a]
-                    print(line[7])
-                    print('old', line)
+                    #print('updated new alts', newAlts)
+                    #print('old line 4', line[4])
+
+                    #update alts
+                    rmSNP = line[4].split(',')
+                    #print(rmSNP)
+                    del rmSNP[a]
+                    line[4] = ','.join(rmSNP)
+                    #print('new line 4', line[4])
+
+                    #update counts
+                    #print('old line 7', line[7])
+                    changeCT = line[7].split(';')[0][3:].split(',')
+                    #print('change ct', changeCT)
+                    del changeCT[a]
+                    #this is hyperspecific and not the most important thing if it stops working dont mess w it too much
+                    line[7] = line[7][0:3]+','.join(changeCT) + ';' + line[7].split(';')[1]
+                    
+                    #print('after',changeCT)
+                    #print('new line 7', line[7])
+                    #print('old', line)
+                    #remove alt from gts as well
                     for i in range(9, len(line)):
                         if line[i] == str(a+1):
                             line[i] = '0'
-                    print('new',line)
+                    #print('new',line)
 
-                
-    print('line',line)
-    print('newlines', addLines)
+    if dontAdd == False:
+        addLines.insert(0,line)
+    return addLines
+    #print('line',line)
+    #print('newlines', addLines)
             
         
                 
@@ -457,7 +438,8 @@ with gz.open(inFile, 'rb') as f:
             if posIndel == True or len(line[3]) > 1:
                 print('indel? ')
                 #gen = 
-                processIndels(line, newAlts, newAltsRef, newAC)
+                indelLines = processIndels(line, newAlts, newAltsRef, newAC)
+                print(indelLines)
                 #for g in gen:
                 #    print(g)
                 indel += 1
