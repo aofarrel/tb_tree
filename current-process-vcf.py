@@ -131,6 +131,7 @@ def processLines(line):
 
 def processIndels(line,newAlts, newAltsRef, newAC):
     addLines = []
+    removeAlt = []
     #snp = False
     #print('work?')
     ref = line[3]
@@ -161,11 +162,11 @@ def processIndels(line,newAlts, newAltsRef, newAC):
                 #replacing the alt with a string of N's represents that it's an indel wo removing it from vcf and misrepresenting
                 #site as reference genotype
                 newAlts[a] = 'N'*len(newAlts[a])
-                line[4] = ','.join(newAlts)
+                #line[4] = ','.join(newAlts)
                 #change alts to updated newAlts
-                #changeAlt = line[4].split(',')
-                #changeAlt[a] = newAlts[a]
-                #line[4] = ','.join(changeAlt)
+                changeAlt = line[4].split(',')
+                changeAlt[a] = 'N'*len(newAlts[a])
+                line[4] = ','.join(changeAlt)
                 #note that nothing here is changed except how the indel is represented (we are changing alt so we can see that its 
                 #been processed) usher will see this site as the reference bc it ignores indels but we will know there is a variant here
 
@@ -184,14 +185,22 @@ def processIndels(line,newAlts, newAltsRef, newAC):
                 #has been prpcessed (this approach may need to be modified eventually)
                 else:
                     newAlts[a] = 'N'*len(newAlts[a])
-                    line[4] = ','.join(newAlts)
+                    changeAlt = line[4].split(',')
+                    changeAlt[a] = 'N'*len(newAlts[a])
+                    line[4] = ','.join(changeAlt)
+                    #line[4] = ','.join(newAlts)
 
             #deletions need subsequent positions masked as well
             #since subsequent positions will be added, need a new line for everysingle one 
             elif len(ref) > len(newAlts[a]):
                 #first modify the alt to a string of Ns
+                print(a)
                 newAlts[a] = 'N'*len(newAlts[a])
-                line[4] = ','.join(newAlts)
+                changeAlt = line[4].split(',')
+                changeAlt[a] = 'N'*len(newAlts[a])
+                print(changeAlt)
+                line[4] = ','.join(changeAlt)
+                #line[4] = ','.join(newAlts)
                 #don't need the intial deletion if it is the only variant in the position
                 #misrepresents indel as reference but usher cant tell 
                 #THIS MAY NEED TO BE MODIFIED, SOME DELETIONS MAY NOT LINE UP FULLY KEEP AN EYE OUT
@@ -259,6 +268,8 @@ def processIndels(line,newAlts, newAltsRef, newAC):
                 if len(newAlts) == 1:
                     dontAdd = True
                 else:
+                    removeAlt.append(a)
+                    '''
                     #print('remove snp from this', line)
                     #print(newAlts)
                     #newAlts = newAlts.pop(a)
@@ -288,14 +299,61 @@ def processIndels(line,newAlts, newAltsRef, newAC):
                         if line[i] == str(a+1):
                             line[i] = '0'
                     #print('new',line)
+                    '''
 
     if dontAdd == False:
+        if len(removeAlt) > 0:
+            for a in removeAlt:
+                #print('remove snp from this', line)
+                #print(newAlts)
+                #newAlts = newAlts.pop(a)
+                #print('updated new alts', newAlts)
+                #print('old line 4', line[4])
+
+                #update alts
+                rmSNP = line[4].split(',')
+                #print(rmSNP)
+                del rmSNP[a]
+                line[4] = ','.join(rmSNP)
+                #print('new line 4', line[4])
+
+                #update counts
+                #print('old line 7', line[7])
+                changeCT = line[7].split(';')[0][3:].split(',')
+                #print('change ct', changeCT)
+                del changeCT[a]
+                #this is hyperspecific and not the most important thing if it stops working dont mess w it too much
+                line[7] = line[7][0:3]+','.join(changeCT) + ';' + line[7].split(';')[1]
+                
+                #print('after',changeCT)
+                #print('new line 7', line[7])
+                #print('old', line)
+                #remove alt from gts as well
+                for i in range(9, len(line)):
+                    if line[i] == str(a+1):
+                        line[i] = '0'
+                #print('new',line)
+
         addLines.insert(0,line)
+    lines = checkNewLines(addLines)
     return addLines
     #print('line',line)
     #print('newlines', addLines)
-            
-        
+
+def checkNewLines(addLines):
+    positions = {}
+    for l in range(len(addLines)):
+        if int(addLines[l][1]) not in positions:
+            positions[int(addLines[l][1])] = [l]
+        else:
+            #positions[int(addLines[l][1])][0] += 1
+            positions[int(addLines[l][1])].append(l)
+    for p in positions:
+        print(p, positions[p])
+        if len(positions[p]) > 1:
+            for l in positions[p]:
+                print(addLines[l])
+
                 
     #need to check to make sure generator stays in order 
     #yield line
