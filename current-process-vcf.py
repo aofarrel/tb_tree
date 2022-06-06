@@ -20,14 +20,17 @@ def processLines(line):
     alleleCounts = line[7].split(';')[0][3:].split(',')
     alts = line[4].split(',')
     ref = line[3]
-
+    print('line', line)
     #make sure there is a count for every allele
     assert len(alts) == len(alleleCounts)
+    
+
     variantsPresent = False
     newAlts = []
     newAltsRef = []
     newAC = []
     for i in range(len(alleleCounts)):
+        print(alleleCounts)
         if int(alleleCounts[i]) > 0:
             #make sure ref is 1 indexed
             newAltsRef.append(str(i+1))
@@ -336,12 +339,13 @@ def processIndels(line,newAlts, newAltsRef, newAC):
 
         addLines.insert(0,line)
     lines = checkNewLines(addLines)
-    return addLines
+    return lines
     #print('line',line)
     #print('newlines', addLines)
 
 def checkNewLines(addLines):
     positions = {}
+    lines = []
     for l in range(len(addLines)):
         if int(addLines[l][1]) not in positions:
             positions[int(addLines[l][1])] = [l]
@@ -351,8 +355,39 @@ def checkNewLines(addLines):
     for p in positions:
         print(p, positions[p])
         if len(positions[p]) > 1:
-            for l in positions[p]:
-                print(addLines[l])
+            newLine = copy.copy(addLines[positions[p][0]])
+            #print('old line',addLines[positions[p][0]])
+            #print(newLine)
+            for l in range(1,len(positions[p])):
+                #newLine
+                #print('line',addLines[positions[p][l]])
+                #need to make sure this can work for any lenght of alts
+            
+                assert newLine[1] == addLines[positions[p][l]][1]
+                assert newLine[3] == addLines[positions[p][l]][3]
+                alts = newLine[4].split(',')
+                alAlts = addLines[positions[p][l]][4].split(',')
+                print('alts',alts)
+                print('alakts',alAlts)
+                for i in range(len(alAlts)):
+                    allele = i+1 
+                    alts.append(alAlts[i])
+                    #print('alts', alts)
+                    for j in range(9,len(addLines[positions[p][l]])):
+                        #print(j, addLines[positions[p][l]][j])
+                        if addLines[positions[p][l]][j] == str(allele):
+                            assert newLine[j] == '0'
+                            newLine[j] = str(alts.index(alAlts[i])+1)
+            newLine[4] = ','.join(alts)
+            print('newline', newLine)
+            lines.append(newLine)
+        else:
+            lines.append(addLines[positions[p][0]])
+
+
+    lines = sorted(lines, key=lambda x: x[1])
+    #print('indel lines', lines)
+    return lines
 
                 
     #need to check to make sure generator stays in order 
@@ -492,25 +527,30 @@ with gz.open(inFile, 'rb') as f:
                 if len(a) > 1:
                     posIndel = True
                     break
-            
+            #this needs to wirte indels to file (keep checking for edge cases)
             if posIndel == True or len(line[3]) > 1:
                 print('indel? ')
                 #gen = 
                 indelLines = processIndels(line, newAlts, newAltsRef, newAC)
-                print(indelLines)
+                #print(indelLines)
                 #for g in gen:
                 #    print(g)
                 indel += 1
-            
+                if indelLines != None:
+                    print(indelLines)
+                    #indelLines = sorted(indelLines, key=lambda x: x[1])
+                    for ln in indelLines:
+                        of.write('\t'.join(ln)+'\n')
+                        print('order>?',ln)
+            #this will write all non-indel variants into file (i think this is working well)
             else:
                 snp += 1
                 line, missingperline = processAlleles(line, newAlts, newAltsRef)
                 #print(line, missingperline)
-
-            #note that AC does not count the number of N alleles per line 
-            #print('missingperline', missingperline)
-            #print('\t'.join(line))
-            of.write('\t'.join(line)+'\n')
+                #note that AC does not count the number of N alleles per line 
+                #print('mqissingperline', missingperline)
+                #print('\t'.join(line))
+                of.write('\t'.join(line)+'\n')
 
         print('processed', toProcess)
         print('deleted', deleted)
