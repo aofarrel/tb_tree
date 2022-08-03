@@ -4,6 +4,7 @@ import copy
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--vcfFile', required=True)
+#parser.add_argument('-d', '--workingDirectory', required=True, type=str, help='directory for all outputs (make sure this directory will have enough space!!!!)')
 parser.add_argument('-o', '--outFile', required=True)
 args = parser.parse_args()
 inFile=args.vcfFile
@@ -15,36 +16,48 @@ outFile=args.outFile
 
 def processLines(line):
     line = line.strip().split('\t')
-    
-    #note that alleleCounts are 2X the amount bc it assumes diploid
     alleleCounts = line[7].split(';')[0][3:].split(',')
     alts = line[4].split(',')
     ref = line[3]
-    print('line', line)
+    #print('line', line)
+
     #make sure there is a count for every allele
+    #there should be no alleles or counts for missing data
     assert len(alts) == len(alleleCounts)
     
-
+    #track if there are even variants (this was already done in processVCF so shouldnt catch anything)
     variantsPresent = False
     newAlts = []
     newAltsRef = []
     newAC = []
+
+    #already asserted that len(alts) is the same so this value should be consistent 
     for i in range(len(alleleCounts)):
-        print(alleleCounts)
+        #print(alleleCounts)
+
+        #essentially the same thing as in processVCF
         if int(alleleCounts[i]) > 0:
-            #make sure ref is 1 indexed
+            #make sure alts are 1 indexed
             newAltsRef.append(str(i+1))
             newAlts.append(alts[i])
             newAC.append(alleleCounts[i])
             variantsPresent = True
+
     #make sure all new stats are equivalent 
     assert len(newAltsRef) == len(newAlts)
     assert len(newAlts) == len(newAC)
 
+    print('newAlts', newAlts)
+    print('newAltsRef', newAltsRef)
+
     onlyMissing = False
     missing = False
+
+    #probably dont need this 
     variantOnly = False
+
     # if there are no variants, check for missing data before deleting 
+    #this is redundant but probably too complicated to easily delete
     if variantsPresent==False:
         if './.' not in line:
             #there is no missing data or variants, this line can be ignored
@@ -53,18 +66,24 @@ def processLines(line):
             #there is missing data in this line and it must be processed
             onlyMissing = True
     
+    #variants present
     else:
+        #determine if there are variants and missing data
         if './.' in line:
             missing = True
         else:
             variantOnly = True
     
+    #there should either be missing data or variants (allows for both as well)
     assert onlyMissing == True or len(newAC) > 0
     
     #change allele counts (counts changed from dip to hap)
     #if greater efficiency is needed, dip->hap is not strictly necessary
     line[7] = line[7].split(';')
+    print(line[7])
     changed = False
+
+    #what are these?
     one = 0
     two = 0
     three = 0
@@ -72,48 +91,68 @@ def processLines(line):
     #the first conditional accounts for all lines where onlyMissing = True
     if len(newAC) == 0:
         #print(line[1])
+
+        #add string N to represent missing data
+        #track this later to see if it confuses usher
         newAlts.append('N'*len(ref))
+        #actually update the line
         line[4] = 'N'*len(ref)
+
+        #do not create an allele count for missing data
+        #add an back in 
         line[7] = 'AC='+';'+line[7][1]
-        #print('there is missing in this!!!', line)
-        #print('only missing', onlyMissing)
-        #print('missing', missing)
+        #track if the line was updated
         changed = True
         #print('1')
+
+    #this conditional note's that no alt alleles were removed from the position and updates format wo changing anything else
+    #
     elif alleleCounts == newAC:
-        #print(line[1], 'unchanged')
-        #print('missingOnly', onlyMissing)
-        #print('missing', missing)
-        #print('variantOnly', variantOnly)
+        #determine if there is missing data and add to alts and line
+        print('no change, update format') 
         if missing == True:
             newAlts.append('N'*len(ref))
             line[4] = ','.join(newAlts)
             #print('there is missing in this!!!', line)
+        
+        #is this not allele counts? fix
+        print('allele counts', alleleCounts)
         ac = line[7][0][3:].split(',')
-        for a in range(len(ac)):
-            ac[a] = str(int(int(ac[a])/2))
+        print('ac', ac)
+
+        #probably dont need this anymore? i control the ac now
+        ####THIS IS WEIRD FIGURE OUT WHAT IT"S DOING 
+        #for a in range(len(ac)):
+        #    ac[a] = str(int(int(ac[a])/2))
+        print('ac after', ac)
+
         line[7] = 'AC='+ ','.join(ac)+';'+line[7][1]
-        #print('only missing', onlyMissing)
-        #print('missing', missing)
-        #print('2')
+        print(line[7])
+    
+    #this conditional is if there are alleles but less than the og file 
     else:
+        print('new allele list ', line)
+        #do i need to track changed? just means changed from previous file
         changed = True
-        #print(line)
-        #print(missing)
-        #print('oldac', alleleCounts)
-        #print('new ac', newAC)
-        #print('old alts', alts)
-        #print('new alts', newAlts)
-        #print('new alts ref', newAltsRef)
-        #print('only missing', onlyMissing)
-        #print('missing', missing)
+        
+        #add alt for missing, make sure this is ok w usher later
         if missing == True:
             newAlts.append('N'*len(ref))
-            #print('there is missing in this!!!', line)
+        
+        #####come back here to check 
+        print('new alts', newAlts)
+        print('newAC', newAC)
+
         line[4] = ','.join(newAlts)
-        for a in range(len(newAC)):
-            newAC[a] = str(int(int(newAC[a])/2))
+        #line[7]
+        print(line)
+        #for a in range(len(newAC)):
+        #    print('a', a)
+        #    print(int(int(newAC[a])/2))
+        #    newAC[a] = str(int(int(newAC[a])/2))
+        print('new ac?',newAC)
         line[7] = 'AC='+ ','.join(newAC)+';'+line[7][1]
+        print('updated?', line)
         
         #print(line)
         #print(newAC)
@@ -135,6 +174,10 @@ def processLines(line):
 def processIndels(line,newAlts, newAltsRef, newAC):
     addLines = []
     removeAlt = []
+    print('for indels', line)
+    print('newAlts', newAlts)
+    print('newAltsRef', newAltsRef)
+    print('newAC', newAC)
     #snp = False
     #print('work?')
     ref = line[3]
@@ -150,7 +193,11 @@ def processIndels(line,newAlts, newAltsRef, newAC):
     for a in range(len(newAlts)):
 
         if len(ref) == 1:
-            assert len(ref) < len(newAlts[a])
+            print(ref,newAlts, newAlts[a])
+            if len(ref) == len(newAlts[a]):
+                assert newAlts[a] == 'N'
+            else:
+                assert len(ref) < len(newAlts[a])
             #the simplest case: insertion from one base pair to many and no other alleles... simply delete line from file
             #misrepresents these sites as reference but that is currently how usher does it 
             #if there are no other alts in the site there is no reason to store it even if this misrepresents it
@@ -164,6 +211,8 @@ def processIndels(line,newAlts, newAltsRef, newAC):
             
                 #replacing the alt with a string of N's represents that it's an indel wo removing it from vcf and misrepresenting
                 #site as reference genotype
+
+
                 newAlts[a] = 'N'*len(newAlts[a])
                 #line[4] = ','.join(newAlts)
                 #change alts to updated newAlts
@@ -315,7 +364,8 @@ def processIndels(line,newAlts, newAltsRef, newAC):
 
                 #update alts
                 rmSNP = line[4].split(',')
-                #print(rmSNP)
+                print('line[4]',rmSNP)
+                print('allele', a)
                 del rmSNP[a]
                 line[4] = ','.join(rmSNP)
                 #print('new line 4', line[4])
@@ -461,11 +511,17 @@ def checkNewLines(addLines):
     '''
 
 def processAlleles(line, newAlts, newAltsRef):
+    print('for snps!!!', line)
+    print('new alts', newAlts)
+    print('new alts ref', newAltsRef)
     missingperline = 0
+    
     ref = line[3]
+    print('ref', ref)
     for i in range(9,len(line)):
         
         gt = line[i].split('/')
+        print('gt', gt)
         #when written as diploid the gt should have matching haplotype
         assert gt[0] == gt[1]
         
@@ -476,20 +532,26 @@ def processAlleles(line, newAlts, newAltsRef):
             #if ref is 0 then all alts are 1 based encoding?
             #line[i] = str(line[4].split(',').index('N')+1)
             line[i] = str(newAlts.index('N'*len(ref))+1)
+            print('new line', line)
             #print('there is missing in this!!!', line)
             
         #if no data is missing for sample, change genotype to haploid   
         else:
+            
             if gt[0] == '0':
                 line[i] = gt[0]
             else:
                 oldInd = gt[0]
+                print('need to change allele' )
                 #print(oldInd, type(oldInd))
                 #print(newAltsRef)
+                print(newAltsRef)
+                print(line)
                 newInd = str(newAltsRef.index(oldInd)+1)
                 line[i] = newInd
                 #print('old',oldInd)
-                #print('newInd', newInd)
+                print('newInd', newInd)
+                print('updated line', line)
     return line, missingperline
 
 #open input for reading and open output for writing 
@@ -510,6 +572,7 @@ with gz.open(inFile, 'rb') as f:
             if line.startswith('#'):
                 of.write(line)
                 continue
+
             totalLines += 1
             #print(line)
             #for each line, use processLines to determine if the line has any relevant variants or missing data
@@ -529,6 +592,9 @@ with gz.open(inFile, 'rb') as f:
                     break
             #this needs to wirte indels to file (keep checking for edge cases)
             if posIndel == True or len(line[3]) > 1:
+                pass
+                #comment out to see if code works on nonindels
+                '''
                 print('indel? ')
                 #gen = 
                 indelLines = processIndels(line, newAlts, newAltsRef, newAC)
@@ -542,6 +608,7 @@ with gz.open(inFile, 'rb') as f:
                     for ln in indelLines:
                         of.write('\t'.join(ln)+'\n')
                         print('order>?',ln)
+                        '''
             #this will write all non-indel variants into file (i think this is working well)
             else:
                 snp += 1
@@ -557,6 +624,11 @@ with gz.open(inFile, 'rb') as f:
         print('indel', indel)
         print('snp', snp)
         print('total', totalLines)
+
+
+
+
+
 
 
 
