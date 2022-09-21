@@ -19,7 +19,6 @@ def processLines(line):
     alleleCounts = line[7].split(';')[0][3:].split(',')
     alts = line[4].split(',')
     ref = line[3]
-    #print('line', line)
 
     #make sure there is a count for every allele
     #there should be no alleles or counts for missing data
@@ -47,8 +46,8 @@ def processLines(line):
     assert len(newAltsRef) == len(newAlts)
     assert len(newAlts) == len(newAC)
 
-    print('newAlts', newAlts)
-    print('newAltsRef', newAltsRef)
+    #print('newAlts', newAlts)
+    #print('newAltsRef', newAltsRef)
 
     onlyMissing = False
     missing = False
@@ -80,7 +79,7 @@ def processLines(line):
     #change allele counts (counts changed from dip to hap)
     #if greater efficiency is needed, dip->hap is not strictly necessary
     line[7] = line[7].split(';')
-    print(line[7])
+    #print('line[7]',line[7])
     changed = False
 
     #what are these?
@@ -109,29 +108,29 @@ def processLines(line):
     #
     elif alleleCounts == newAC:
         #determine if there is missing data and add to alts and line
-        print('no change, update format') 
+        #print('no change, update format') 
         if missing == True:
             newAlts.append('N'*len(ref))
             line[4] = ','.join(newAlts)
             #print('there is missing in this!!!', line)
         
         #is this not allele counts? fix
-        print('allele counts', alleleCounts)
+        #print('allele counts', alleleCounts)
         ac = line[7][0][3:].split(',')
-        print('ac', ac)
+        #print('ac', ac)
 
         #probably dont need this anymore? i control the ac now
         ####THIS IS WEIRD FIGURE OUT WHAT IT"S DOING 
         #for a in range(len(ac)):
         #    ac[a] = str(int(int(ac[a])/2))
-        print('ac after', ac)
+        #print('ac after', ac)
 
         line[7] = 'AC='+ ','.join(ac)+';'+line[7][1]
-        print(line[7])
+        #print(line[7])
     
     #this conditional is if there are alleles but less than the og file 
     else:
-        print('new allele list ', line)
+        #print('new allele list ', line)
         #do i need to track changed? just means changed from previous file
         changed = True
         
@@ -140,19 +139,19 @@ def processLines(line):
             newAlts.append('N'*len(ref))
         
         #####come back here to check 
-        print('new alts', newAlts)
-        print('newAC', newAC)
+        #print('new alts', newAlts)
+        #print('newAC', newAC)
 
         line[4] = ','.join(newAlts)
         #line[7]
-        print(line)
+        #print(line)
         #for a in range(len(newAC)):
         #    print('a', a)
         #    print(int(int(newAC[a])/2))
         #    newAC[a] = str(int(int(newAC[a])/2))
-        print('new ac?',newAC)
+        #print('new ac?',newAC)
         line[7] = 'AC='+ ','.join(newAC)+';'+line[7][1]
-        print('updated?', line)
+        #print('updated?', line)
         
         #print(line)
         #print(newAC)
@@ -511,17 +510,17 @@ def checkNewLines(addLines):
     '''
 
 def processAlleles(line, newAlts, newAltsRef):
-    print('for snps!!!', line)
-    print('new alts', newAlts)
-    print('new alts ref', newAltsRef)
+    print('for snps!!!', line[1])
+    #print('new alts', newAlts)
+    #print('new alts ref', newAltsRef)
     missingperline = 0
     
     ref = line[3]
-    print('ref', ref)
+    #print('ref', ref)
     for i in range(9,len(line)):
         
         gt = line[i].split('/')
-        print('gt', gt)
+        #print('gt', gt)
         #when written as diploid the gt should have matching haplotype
         assert gt[0] == gt[1]
         
@@ -532,7 +531,7 @@ def processAlleles(line, newAlts, newAltsRef):
             #if ref is 0 then all alts are 1 based encoding?
             #line[i] = str(line[4].split(',').index('N')+1)
             line[i] = str(newAlts.index('N'*len(ref))+1)
-            print('new line', line)
+            #print('new line', line)
             #print('there is missing in this!!!', line)
             
         #if no data is missing for sample, change genotype to haploid   
@@ -542,17 +541,21 @@ def processAlleles(line, newAlts, newAltsRef):
                 line[i] = gt[0]
             else:
                 oldInd = gt[0]
-                print('need to change allele' )
+                #print('need to change allele' )
                 #print(oldInd, type(oldInd))
                 #print(newAltsRef)
-                print(newAltsRef)
-                print(line)
+                #print(newAltsRef)
+                #print(line)
                 newInd = str(newAltsRef.index(oldInd)+1)
                 line[i] = newInd
                 #print('old',oldInd)
-                print('newInd', newInd)
-                print('updated line', line)
+                #print('newInd', newInd)
+                #print('updated line', line)
     return line, missingperline
+
+
+
+#MAIN (put in main funct?)
 
 #open input for reading and open output for writing 
 with gz.open(inFile, 'rb') as f:
@@ -574,7 +577,7 @@ with gz.open(inFile, 'rb') as f:
                 continue
 
             totalLines += 1
-            #print(line)
+            
             #for each line, use processLines to determine if the line has any relevant variants or missing data
             data = processLines(line)
             if data != None:
@@ -593,7 +596,9 @@ with gz.open(inFile, 'rb') as f:
             #this needs to wirte indels to file (keep checking for edge cases)
             if posIndel == True or len(line[3]) > 1:
                 pass
+
                 #comment out to see if code works on nonindels
+                #need to fix process indels 
                 '''
                 print('indel? ')
                 #gen = 
@@ -609,6 +614,7 @@ with gz.open(inFile, 'rb') as f:
                         of.write('\t'.join(ln)+'\n')
                         print('order>?',ln)
                         '''
+                        
             #this will write all non-indel variants into file (i think this is working well)
             else:
                 snp += 1
@@ -626,147 +632,3 @@ with gz.open(inFile, 'rb') as f:
         print('total', totalLines)
 
 
-
-
-
-
-
-
-#old code
-'''
-    missing = False
-    missingperline = 0
-    possibleIndel = False
-    for a in alts:
-        if len(a) > 1:
-            possibleIndel = True
-            break
-
-    if possibleIndel == True or len(line[3]) > 1:
-        print('indel?')
-        #processIndels(line, alleleCounts, alts, variantPresent, onlyMissing, of)
-        indels += 1
-    
-    #print('indel', indel)
-
-    # iterate through all samples at position to find missing data, change genotypes from diploid to haploid and write to file
-    else:
-        for i in range(9,len(line)):
-            gt = line[i].split('/')
-            #when written as diploid the gt should have matching haplotype
-            assert gt[0] == gt[1]
-            #if a sample has missing data, determine if 'N' needs to be added to alt alleles and change genotype to the index for 'N'
-            if line[i] == './.':
-                missingperline += 1
-                if missing == False:
-                    line[4] += ',N'
-                    missing = True
-                
-                #check this!!!!
-                #if ref is 0 then all alts are 1 based encoding?
-                line[i] = str(line[4].split(',').index('N')+1)
-                
-            #if no data is missing for sample, change genotype to haploid   
-            else:
-                line[i] = gt[0]
-
-        #print('processed', line)
-        #note that AC does not count the number of N alleles per line 
-        #print('missingperline', missingperline)
-        of.write('\t'.join(line)+'\n')
-        processed += 1
-        
-print('number of deleted positions', deleted)
-print('positions w missing data', missingData )
-print('variants detected', detected)
-print('positions processed (detected + missingData)', processed)
-print('indels', indels)
-print('total', lines)
-'''
-
-#this is the process alleles functions
-'''
-line = line.strip().split('\t')
-#note that alleleCounts are 2X the amount bc it assumes diploid
-alleleCounts = line[7].split(';')[0][3:].split(',')
-#print('AC',alleleCounts)
-alts = line[4].split(',')
-#print('alts',alts)
-#make sure there is a count for every allele
-assert len(alts) == len(alleleCounts)
-
-
-#iterate through alleleCounts to determine if there are variants for any alleles at the position
-
-variantsPresent = False
-
-newAlts = []
-newAltsRef = []
-newAC = []
-for i in range(len(alleleCounts)):
-    #print(alleleCounts[i])
-    if int(alleleCounts[i]) > 0:
-        #make sure ref is 1 indexed
-        newAltsRef.append(i+1)
-        newAlts.append(alts[i])
-        newAC.append(alleleCounts[i])
-        variantsPresent = True
-#print('new ac', newAC, 'newAltsRef', newAltsRef, 'newAlts', newAlts)
-#print('variants?',variantsPresent)
-assert len(newAltsRef) == len(newAlts)
-assert len(newAlts) == len(newAC)
-
-onlyMissing = False
-# if there are no variants, check for missing data before deleting 
-if variantsPresent==False:
-    if './.' not in line:
-        #there is no missing data or variants, this line can be ignored
-        deleted += 1
-        #print('deleted')
-        continue
-    else:
-        #there is missing data in this line and it must be processed
-        missingData += 1
-        onlyMissing = True
-else:
-    detected += 1
-missing = False
-missingperline = 0
-toProcess += 1
-print('lines to process', line, toProcess)
-
-print('missingOnly', onlyMissing)
-#line[7].split(';')[0] = 'AC='+ ','.join(newAC)
-
-#print('new',line)
-'''
-#this is the process snps function
-'''
-missingperline = 0
-for i in range(9,len(line)):
-    
-    gt = line[i].split('/')
-    #when written as diploid the gt should have matching haplotype
-    assert gt[0] == gt[1]
-    
-    #if a sample has missing data, determine if 'N' needs to be added to alt alleles and change genotype to the index for 'N'
-    if line[i] == './.':
-        missingperline += 1
-        #check this!!!!
-        #if ref is 0 then all alts are 1 based encoding?
-        #line[i] = str(line[4].split(',').index('N')+1)
-        line[i] = str(newAlts.index('N')+1)
-        
-    #if no data is missing for sample, change genotype to haploid   
-    else:
-        if gt[0] == '0':
-            line[i] = gt[0]
-        else:
-            oldInd = gt[0]
-            #print(oldInd, type(oldInd))
-            #print(newAltsRef)
-            newInd = str(newAltsRef.index(oldInd)+1)
-            line[i] = newInd
-            #print('old',oldInd)
-            #print('newInd', newInd)
-            '''
