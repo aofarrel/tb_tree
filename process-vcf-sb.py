@@ -6,14 +6,22 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--vcfFile', required=True)
 parser.add_argument('-d', '--workingDirectory', required=True, type=str, help='directory for all outputs (make sure this directory will have enough space!!!!)')
 parser.add_argument('-c', '--chunk', type=int,required=True)
-#parser.add_argument('-o', '--outFile', required=True)
+
 
 args = parser.parse_args()
 vcf=args.vcfFile
 chunk=args.chunk
-#outFile=args.outFile
 
 wd = args.workingDirectory
+
+
+'''
+THIS SCRIPT IS VERY SIMPLE AND PURELY DESIGNED TO REDUCE THE SIZE OF THE INPUT VCF TO REDUCE PROCESSING TIME. THIS SCRIPT IS NOT WELL DEVELOPED AND SHOULD NOT BE 
+RUN WITHOUT TESTING AND DETERMINING HOW MUCH STORAGE SPACE IS NEEDED. THIS SCRIPT IS NOT OPTIMIZED OR PARALLELIZED AND WILL LIKELY ONLY BE IF ITS WORTH THE TIME IT SAVES. 
+IT IS IMPORTANT TO NOTICE THAT RUNNING THIS SCRIPT ON THE SAME FILE WILL CAUSE A SIGNIFICANT SLOWDOWN AS SCRIPTS THAT ACT ON THE SAME FILE WILL RUN INTO IO LIMITATIONS.
+
+DEPENDING ON THE SIZE OF THE VCF, 1000 SAMPLES IS A GOOD CHUNK SIZE AS IT WILL CONSIDERABLY REDUCE THE FILE SIZE WITHOUT RESULTING IN AN EXTREME NUMBER OF FILES 
+'''
 
 #makes sure input path wont cause error
 if wd[-1] != '/':
