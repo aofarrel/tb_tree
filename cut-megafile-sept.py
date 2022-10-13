@@ -9,12 +9,12 @@ parser.add_argument('-c', '--numMetadataColumns', default=9, type=int, help='one
     '(ex: if CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, SRR7592347 then enter 9)'
     'Note that ALT is always considered to be number 5.')
 #parser.add_argument('-t', '--threads', type=int, help='number of threads (where applicable)', default=1)
-#parser.add_argument('-sd', '--scriptsDirectory', type=str, required=True, help='path to directory where scripts are')
 
 args = parser.parse_args()
 vcf = args.megaVCF
 wd = args.workingDirectory
 metacolumns = args.numMetadataColumns
+#t = args.threads
 
 #makes sure input path wont cause error
 if wd[-1] != '/':
@@ -24,8 +24,6 @@ if wd[-1] != '/':
 #if sd[-1] != '/':
     #print('add a final slash')
 #    sd = sd+'/'
-
-#t = args.threads
 
                             
 def find_snps(line):
@@ -105,13 +103,13 @@ def vcf_to_diff(vcf_file, output):
                         if var != '0/0':
                             
                             if var == './.':
-                                #print('missing', line)
+                                #print(f'missing {line}')
                                 missing += 1
                                 line[4] = '-'
                                 line [-1] = '1'
 
                             else: 
-                                
+
                                 var = var.split('/')
                                 var = var[0]
                                 alts = line[4].split(',')
@@ -119,7 +117,7 @@ def vcf_to_diff(vcf_file, output):
                                 line[4] = alt
                                 line[-1] = '1'
 
-                            #print('line', line)
+                            #print(f'line {line}')
                             assert type(line[4]) == str
                             if len(line[3]) == 1:
 
@@ -151,7 +149,7 @@ def vcf_to_diff(vcf_file, output):
 
                                     #print('indel', line)
                                 #print(line)
-            print('missing', missing, 'total', total)
+            print(f'missing {missing}, total {total}')
 
     return sample
 
@@ -211,10 +209,10 @@ with gzip.open(vcf, 'rt') as v:
         if not line.startswith('##'):
 
             #if the line contains the column names 
-            #note that this assumes 9 meta data columns, if you need to account for more/less change this 
+            #note this assumes args.numMetadataColumns is set correctly
             if line.startswith('#'):
                 line = line.strip().split('\t')
-                #numSamps = len(line[9:])
+                #numSamps = len(line[metacolumns:])
                 lenRow = len(line)
 
                 #this is the 1-indexed indices for each row of the file, we will keep these values as they can be 
@@ -222,10 +220,6 @@ with gzip.open(vcf, 'rt') as v:
                 #print('lenRow',lenRow)
                 break
 
-
-
-#note this assumes 9 meta cols, will need to change here as well 
-#this is all 1-indexing dont get confused
 
 #change this loop after testing 
 
