@@ -4,7 +4,7 @@ import argparse
 import logging
 import subprocess
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--megaVCF', required=True, type=str,help='path to giant VCF to be chunked')
@@ -114,11 +114,11 @@ def vcf_to_diff(vcf_file, output):
 
                         logging.debug(f"var {var}")
                         
-                        # my VCFs have a longer format string, will this always be false?
+                        # check this, seems to always happen in my vcfs
                         if var != '0/0':
                             
                             if var == './.':
-                                logging.debug('missing', line)
+                                logging.debug(f'missing {line}')
                                 missing += 1
                                 line[4] = '-'
                                 line [-1] = '1'
@@ -131,7 +131,7 @@ def vcf_to_diff(vcf_file, output):
                                 line[4] = alt
                                 line[-1] = '1'
 
-                            logging.debug('line', line)
+                            logging.debug(f'line {line}')
                             assert type(line[4]) == str
                             if len(line[3]) == 1:
 
@@ -163,7 +163,7 @@ def vcf_to_diff(vcf_file, output):
 
                                     #print('indel', line)
                                 #print(line)
-            logging.debug('missing', missing, 'total', total)
+            logging.debug(f'missing {missing}, total {total}')
 
     return sample
 
@@ -243,13 +243,14 @@ with open(vcf, 'rt') as v:
 for i in range(metacolumns, lenRow):
     logging.info(f"Processing sample number {lenRow-metacolumns}")
     #os.system(f'gzip -dc {vcf} | cut -f1-9,{i} > {wd}col{i}.vcf')
-    os.system(f'cat {vcf} | cut -f1-9,{i} > {wd}col{i}.vcf')
-    os.system(f'bgzip -f {wd}col{i}.vcf')
-    os.system(f"bcftools annotate -x '^FORMAT/GT' -O v -o {wd}col{i}filt.vcf {wd}col{i}.vcf.gz")
-    os.system(f'bgzip -f {wd}col{i}filt.vcf')
-    sample = vcf_to_diff(f'{wd}col{i}filt.vcf.gz', f'{wd}col{i}.diff')
+    os.system(f'cat {vcf} | cut -f1-{lenRow},{i} > {wd}col{i}.vcf')
+    os.system(f'head -30 {wd}col{i}.vcf')
+    #os.system(f'bgzip -f {wd}col{i}.vcf')
+    subprocess.check_call(["bcftools", "annotate", "-x", "^FORMAT/GT", "-O", "v", "-o", f"{wd}col{i}filt.vcf", f"{wd}col{i}.vcf"])
+    #os.system(f'bgzip -f {wd}col{i}filt.vcf')
+    sample = vcf_to_diff(f'{wd}col{i}filt.vcf', f'{wd}col{i}.diff')
     logging.debug(sample)
-    os.system(f'rm {wd}col{i}*.vcf.gz')
+    os.system(f'rm {wd}col{i}*.vcf')
     squish(f'{wd}col{i}.diff')
     os.system(f'rm {wd}col{i}.diff')
     if '/' not in sample:
@@ -258,6 +259,7 @@ for i in range(metacolumns, lenRow):
         newname = sample.replace('/', '-')
         logging.debug(f"Changed sample name to {newname}")
         os.system(f'mv {wd}col{i}.diffsquish {wd}{newname}.diff')
+logging.info("Finished.")
         
 
     #vcf_to_diff(f'{wd}col{i}filt.vcf', i, f'{wd}col{i}.diff')
