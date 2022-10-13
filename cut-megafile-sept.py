@@ -5,12 +5,16 @@ import gzip
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--megaVCF', required=True, type=str,help='path to giant VCF to be chunked')
 parser.add_argument('-d', '--workingDirectory', required=True, type=str, help='directory for all outputs (make sure this directory will have enough space!!!!)')
+parser.add_argument('-c', '--numMetadataColumns', default=9, type=int, help='one-indexed number of metadata columns in VCF, excluding sample names '
+    '(ex: if CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, SRR7592347 then enter 9)'
+    'Note that ALT is always considered to be number 5.')
 #parser.add_argument('-t', '--threads', type=int, help='number of threads (where applicable)', default=1)
 #parser.add_argument('-sd', '--scriptsDirectory', type=str, required=True, help='path to directory where scripts are')
 
 args = parser.parse_args()
 vcf = args.megaVCF
 wd = args.workingDirectory
+metacolumns = args.numMetadataColumns
 
 #makes sure input path wont cause error
 if wd[-1] != '/':
@@ -225,8 +229,8 @@ with gzip.open(vcf, 'rt') as v:
 
 #change this loop after testing 
 
-#for i in range(10,lenRow):
-for i in range(10,lenRow):
+assert(metacolumns != lenRow)
+for i in range(metacolumns,lenRow):
     print(i)
     os.system(f'gzip -dc {vcf} | cut -f1-9,{i} > {wd}col{i}.vcf')
     os.system(f'bgzip -f {wd}col{i}.vcf')
