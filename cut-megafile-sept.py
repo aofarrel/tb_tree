@@ -232,7 +232,7 @@ with gzip.open(vcf, 'rt') as v:
 assert(metacolumns != lenRow)
 for i in range(metacolumns,lenRow):
     print(i)
-    os.system(f'gzip -dc {vcf} | cut -f1-9,{i} > {wd}col{i}.vcf')
+    os.system(f'gzip -dc {vcf} | cut -f1-{lenRow},{i} > {wd}col{i}.vcf')
     os.system(f'bgzip -f {wd}col{i}.vcf')
     os.system(f"bcftools annotate -x '^FORMAT/GT' -O v -o {wd}col{i}filt.vcf {wd}col{i}.vcf.gz")
     os.system(f'bgzip -f {wd}col{i}filt.vcf')
