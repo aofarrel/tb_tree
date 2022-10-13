@@ -1,6 +1,7 @@
 import os
 import argparse
 import gzip
+import logging
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--megaVCF', required=True, type=str,help='path to giant VCF to be chunked')
@@ -88,26 +89,30 @@ def vcf_to_diff(vcf_file, output):
             total = 0
             for line in v:
                 if not line.startswith('##'):
+
+                    # grab sample name if this is the header
                     if line.startswith('#'):
                         line = line.strip().split()
                         sample = line[-1]
-                        #print('sample', sample)
+                        logging.debug('sample', sample)
                         o.write(f'>{sample}\n')
+                    
                     else:
-                        total += 1
+                        total += 1 # what does total represent here?
                         line = line.strip().split()
                         var = line[-1]
+
+                        logging.debug(f"var {var}")
                         
                         if var != '0/0':
                             
                             if var == './.':
-                                #print('missing', line)
+                                logging.debug('missing', line)
                                 missing += 1
                                 line[4] = '-'
                                 line [-1] = '1'
 
                             else: 
-                                
                                 var = var.split('/')
                                 var = var[0]
                                 alts = line[4].split(',')
@@ -115,7 +120,7 @@ def vcf_to_diff(vcf_file, output):
                                 line[4] = alt
                                 line[-1] = '1'
 
-                            #print('line', line)
+                            logging.debug('line', line)
                             assert type(line[4]) == str
                             if len(line[3]) == 1:
 
