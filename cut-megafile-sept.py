@@ -1,6 +1,5 @@
 import os
 import argparse
-#import gzip
 import logging
 import subprocess
 
@@ -10,7 +9,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--megaVCF', required=True, type=str,help='path to giant VCF to be chunked')
 parser.add_argument('-d', '--workingDirectory', required=True, type=str, help='directory for all outputs (make sure this directory will have enough space!!!!)')
 parser.add_argument('-c', '--numMetadataColumns', default=9, type=int, help='one-indexed number of metadata columns in VCF, excluding sample names '
-    '(ex: if CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, SRR7592347 then enter 9')
+    '(ex: if CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, SRR7592347 then enter 9)'
+    'Note that ALT is always considered to be number 5.')
 #parser.add_argument('-t', '--threads', type=int, help='number of threads (where applicable)', default=1)
 
 args = parser.parse_args()
@@ -91,7 +91,6 @@ def process_others(line):
 
 def vcf_to_diff(vcf_file, output):
     #takes a single sample vcf and converts to diff format 
-    
     #with gzip.open(vcf_file, 'rt') as v:
     with open(vcf_file, 'rt') as v:
         with open(output, 'w') as o:
@@ -111,10 +110,7 @@ def vcf_to_diff(vcf_file, output):
                         total += 1 # what does total represent here?
                         line = line.strip().split()
                         var = line[-1]
-
-                        logging.debug(f"var {var}")
                         
-                        # check this, seems to always happen in my vcfs
                         if var != '0/0':
                             
                             if var == './.':
@@ -130,7 +126,7 @@ def vcf_to_diff(vcf_file, output):
                                 alt = alts[int(var)-1]
                                 line[4] = alt
                                 line[-1] = '1'
-
+                                
                             logging.debug(f'line {line}')
                             assert type(line[4]) == str
                             if len(line[3]) == 1:
@@ -244,7 +240,6 @@ for i in range(metacolumns, lenRow):
     logging.info(f"Processing sample number {lenRow-metacolumns}")
     #os.system(f'gzip -dc {vcf} | cut -f1-9,{i} > {wd}col{i}.vcf')
     os.system(f'cat {vcf} | cut -f1-{lenRow},{i} > {wd}col{i}.vcf')
-    os.system(f'head -30 {wd}col{i}.vcf')
     #os.system(f'bgzip -f {wd}col{i}.vcf')
     subprocess.check_call(["bcftools", "annotate", "-x", "^FORMAT/GT", "-O", "v", "-o", f"{wd}col{i}filt.vcf", f"{wd}col{i}.vcf"])
     #os.system(f'bgzip -f {wd}col{i}filt.vcf')
