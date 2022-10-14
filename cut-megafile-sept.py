@@ -1,6 +1,9 @@
 import os
 import argparse
-import gzip
+import logging
+import subprocess
+
+logging.basicConfig(level=logging.INFO)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--megaVCF', required=True, type=str,help='path to giant VCF to be chunked')
@@ -24,6 +27,10 @@ if wd[-1] != '/':
 #if sd[-1] != '/':
     #print('add a final slash')
 #    sd = sd+'/'
+
+if os.path.splitext(vcf)[1] == ".gz":
+    vcf = os.path.splitext(vcf)[0]
+    subprocess.run(["pigz", "-d", f"./{vcf}"])
 
                             
 def find_snps(line):
@@ -84,7 +91,7 @@ def process_others(line):
 
 def vcf_to_diff(vcf_file, output):
     #takes a single sample vcf and converts to diff format 
-    with gzip.open(vcf_file, 'rt') as v:
+    with open(vcf_file, 'rt') as v:
         with open(output, 'w') as o:
             missing = 0
             total = 0
@@ -93,31 +100,31 @@ def vcf_to_diff(vcf_file, output):
                     if line.startswith('#'):
                         line = line.strip().split()
                         sample = line[-1]
-                        #print('sample', sample)
+                        logging.debug('sample', sample)
                         o.write(f'>{sample}\n')
+                    
                     else:
-                        total += 1
+                        total += 1 # what does total represent here?
                         line = line.strip().split()
                         var = line[-1]
                         
                         if var != '0/0':
                             
                             if var == './.':
-                                #print(f'missing {line}')
+                                logging.debug(f'missing {line}')
                                 missing += 1
                                 line[4] = '-'
                                 line [-1] = '1'
 
                             else: 
-
                                 var = var.split('/')
                                 var = var[0]
                                 alts = line[4].split(',')
                                 alt = alts[int(var)-1]
                                 line[4] = alt
                                 line[-1] = '1'
-
-                            #print(f'line {line}')
+                                
+                            logging.debug(f'line {line}')
                             assert type(line[4]) == str
                             if len(line[3]) == 1:
 
@@ -149,7 +156,7 @@ def vcf_to_diff(vcf_file, output):
 
                                     #print('indel', line)
                                 #print(line)
-            print(f'missing {missing}, total {total}')
+            logging.debug(f'missing {missing}, total {total}')
 
     return sample
 
@@ -203,7 +210,8 @@ def squish(file):
 
 
 #open file to indentify number of samples 
-with gzip.open(vcf, 'rt') as v:
+with open(vcf, 'rt') as v:
+    logging.info(f"Scanning {vcf}...")
     for line in v:
         #if the line is not part of the heading
         if not line.startswith('##'):
@@ -212,8 +220,9 @@ with gzip.open(vcf, 'rt') as v:
             #note this assumes args.numMetadataColumns is set correctly
             if line.startswith('#'):
                 line = line.strip().split('\t')
-                #numSamps = len(line[metacolumns:])
+                numSamps = len(line[metacolumns:])
                 lenRow = len(line)
+                logging.info(f"VCF has {lenRow} columns of which {metacolumns} are metadata and {numSamps} are samples")
 
                 #this is the 1-indexed indices for each row of the file, we will keep these values as they can be 
                 # traced from the largest vcf to the subvcfs to make sure all of the info is consistent
@@ -222,25 +231,26 @@ with gzip.open(vcf, 'rt') as v:
 
 
 #change this loop after testing 
-
 assert(metacolumns != lenRow)
 for i in range(metacolumns,lenRow):
     print(i)
-    os.system(f'gzip -dc {vcf} | cut -f1-{lenRow},{i} > {wd}col{i}.vcf')
-    os.system(f'bgzip -f {wd}col{i}.vcf')
-    os.system(f"bcftools annotate -x '^FORMAT/GT' -O v -o {wd}col{i}filt.vcf {wd}col{i}.vcf.gz")
-    os.system(f'bgzip -f {wd}col{i}filt.vcf')
-    sample = vcf_to_diff(f'{wd}col{i}filt.vcf.gz', f'{wd}col{i}.diff')
-    print(sample)
-    os.system(f'rm {wd}col{i}*.vcf.gz')
+    #os.system(f'gzip -dc {vcf} | cut -f1-9,{i} > {wd}col{i}.vcf')
+    os.system(f'cat {vcf} | cut -f1-{lenRow},{i} > {wd}col{i}.vcf')
+    #os.system(f'bgzip -f {wd}col{i}.vcf')
+    subprocess.check_call(["bcftools", "annotate", "-x", "^FORMAT/GT", "-O", "v", "-o", f"{wd}col{i}filt.vcf", f"{wd}col{i}.vcf"])
+    #os.system(f'bgzip -f {wd}col{i}filt.vcf')
+    sample = vcf_to_diff(f'{wd}col{i}filt.vcf', f'{wd}col{i}.diff')
+    logging.debug(sample)
+    os.system(f'rm {wd}col{i}*.vcf')
     squish(f'{wd}col{i}.diff')
     os.system(f'rm {wd}col{i}.diff')
     if '/' not in sample:
         os.system(f'mv {wd}col{i}.diffsquish {wd}{sample}.diff')
     else:
         newname = sample.replace('/', '-')
-        print(newname)
+        logging.debug(f"Changed sample name to {newname}")
         os.system(f'mv {wd}col{i}.diffsquish {wd}{newname}.diff')
+logging.info("Finished.")
         
 
     #vcf_to_diff(f'{wd}col{i}filt.vcf', i, f'{wd}col{i}.diff')
