@@ -1,6 +1,5 @@
 version 1.0
 
-# This task gets used by https://github.com/aofarrel/myco. It cannot work alone.
 
 task make_diff {
 	input {
@@ -21,13 +20,15 @@ task make_diff {
 		set -eux pipefail
 		mkdir outs
 		ls -lha
+		echo $PATH
+		pwd
 		python merged_to_diff_sept.py -v {vcf} -d outs -t {threads}
 	>>>
 
 	runtime {
 		cpu: cpu
 		disks: "local-disk " + finalDiskSize + " SSD"
-		docker: "ashedpotatoes/vcf_to_diff:1.0.0"
+		docker: "ashedpotatoes/vcf_to_diff:1.0.2"
 		maxRetries: "${retries}"
 		memory: "${memory} GB"
 		preemptible: "${preempt}"
@@ -39,5 +40,18 @@ task make_diff {
 
 	output {
 		File diff = glob("outs/*.diff")[0]
+	}
+}
+
+workflow Diff {
+	input {
+		Array[File] vcfs
+	}
+
+	scatter(vcf in vcfs) {
+		call make_diff {
+			input:
+				vcf = vcf
+		}
 	}
 }
