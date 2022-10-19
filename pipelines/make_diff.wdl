@@ -19,13 +19,13 @@ task make_diff {
 	command <<<
 		set -eux pipefail
 		mkdir outs
-		python /scripts/merged_to_diff_sept.py -v ~{vcf} -d /outs/
+		python /scripts/cut-megafile-sept.py -v ~{vcf} -d ./outs/
 	>>>
 
 	runtime {
 		cpu: cpu
 		disks: "local-disk " + finalDiskSize + " SSD"
-		docker: "ashedpotatoes/vcf_to_diff:1.0.2"
+		docker: "ashedpotatoes/vcf_to_diff:1.0.3"
 		maxRetries: "${retries}"
 		memory: "${memory} GB"
 		preemptible: "${preempt}"
