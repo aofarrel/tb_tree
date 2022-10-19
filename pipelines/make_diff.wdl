@@ -19,10 +19,7 @@ task make_diff {
 	command <<<
 		set -eux pipefail
 		mkdir outs
-		ls -lha
-		echo $PATH
-		pwd
-		python merged_to_diff_sept.py -v {vcf} -d outs -t {threads}
+		python /scripts/merged_to_diff_sept.py -v ~{vcf} -d /outs/
 	>>>
 
 	runtime {
