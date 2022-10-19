@@ -2,6 +2,9 @@ import argparse
 import gzip as gz
 import copy
 
+'''
+This is no longer current code. It is kept only for record 
+'''
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--vcfFile', required=True)
 #parser.add_argument('-d', '--workingDirectory', required=True, type=str, help='directory for all outputs (make sure this directory will have enough space!!!!)')

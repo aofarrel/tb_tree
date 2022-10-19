@@ -17,6 +17,10 @@ if wd[-1] != '/':
     wd = wd+'/'
 out=args.out_file
 
+'''
+THIS PROGRAM IS NO LONGER USED IN THE PROCESSING OF TB VCFS FOR USHER PLACEMENT. 
+KEPT FOR RECORDS BUT NO LONGER USED 
+'''
 #this program will take a chunked vcfg post-filtering and preprocessing
 #note this code also assumes 9 cols of meta data 
 with gzip.open(vcf, 'rt') as v:
