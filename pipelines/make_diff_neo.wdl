@@ -19,10 +19,9 @@ task make_diff_neo {
 	command <<<
 		set -eux pipefail
 		mkdir outs
-
-		wget https://raw.githubusercontent.com/lilymaryam/parsevcf/main/vcf_to_diff_script.py > ./scripts/vcf_to_diff_script.py
-
-		python /scripts/vcf_to_diff_script.py -v ~{vcf} -d ./outs/ -tbmf ~{tbmf}
+		touch vcf_to_diff_script.py
+		wget https://raw.githubusercontent.com/lilymaryam/parsevcf/main/vcf_to_diff_script.py > vcf_to_diff_script.py
+		python vcf_to_diff_script.py -v ~{vcf} -d ./outs/ -tbmf ~{tbmf}
 
 		>>>
 
